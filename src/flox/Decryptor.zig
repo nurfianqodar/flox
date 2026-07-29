@@ -65,8 +65,6 @@ pub fn stream(
     blalke3.update(&chunk_layout_encoded);
     blalke3.final(&ad);
 
-    std.debug.print("ad dec = {b64}\n", .{&ad});
-
     var cwd = std.Io.Dir.cwd();
 
     var out_af = try cwd.createFileAtomic(io, output_path, .{ .replace = true });
@@ -96,7 +94,6 @@ pub fn stream(
         const last = chunk[0..chunk_layout.last];
         var chunk_vec = [_][]u8{ last, &tag };
         try reader.readVecAll(chunk_vec[0..]);
-        std.debug.print("last tag dec = {b64}\n", .{tag});
         try cipher.decrypt(last, &ad, counter, tag);
         try writer.writeAll(last);
     }

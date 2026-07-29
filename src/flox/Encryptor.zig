@@ -1,7 +1,8 @@
 const std = @import("std");
 const crypto = std.crypto;
-const Blake3 = crypto.hash.Blake3;
 const mem = std.mem;
+const Blake3 = crypto.hash.Blake3;
+
 const Header = @import("Header.zig");
 const Cipher = @import("Cipher.zig");
 const ChunkLayout = @import("ChunkLayout.zig");
@@ -78,7 +79,6 @@ pub fn stream(
     blalke3.update(&cipher_meta_encoded);
     blalke3.update(&chunk_layout_encoded);
     blalke3.final(&ad);
-    std.debug.print("ad enc = {b64}\n", .{&ad});
 
     try writer.writeVecAll(header_vec[0..]);
 
@@ -106,7 +106,6 @@ pub fn stream(
         const last = chunk[0..chunk_layout.last];
         try reader.readSliceAll(last);
         cipher.encrypt(last, &ad, counter, &tag);
-        std.debug.print("last tag enc = {b64}\n", .{tag});
         var chunk_vec = [_][]const u8{
             last,
             &tag,
