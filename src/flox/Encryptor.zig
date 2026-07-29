@@ -1,5 +1,6 @@
 const std = @import("std");
 const crypto = std.crypto;
+const Blake3 = crypto.hash.Blake3;
 const mem = std.mem;
 const Header = @import("Header.zig");
 const Cipher = @import("Cipher.zig");
@@ -69,6 +70,16 @@ pub fn stream(
         &chunk_layout_encoded,
     };
 
+    var ad: [Cipher.ad_length]u8 = undefined;
+
+    var blalke3: Blake3 = .init(.{});
+    blalke3.update(&Header.default.magic);
+    blalke3.update(&Header.default.version);
+    blalke3.update(&cipher_meta_encoded);
+    blalke3.update(&chunk_layout_encoded);
+    blalke3.final(&ad);
+    std.debug.print("ad enc = {b64}\n", .{&ad});
+
     try writer.writeVecAll(header_vec[0..]);
 
     const chunk = try allocator.alloc(u8, @intCast(chunk_layout.size));
@@ -83,7 +94,7 @@ pub fn stream(
     for (0..chunk_layout.n) |c| {
         counter = @intCast(c);
         try reader.readSliceAll(chunk);
-        cipher.encrypt(chunk, "", counter, &tag);
+        cipher.encrypt(chunk, &ad, counter, &tag);
         var chunk_vec = [_][]const u8{
             chunk,
             &tag,
@@ -91,14 +102,17 @@ pub fn stream(
         try writer.writeVecAll(chunk_vec[0..]);
     }
     counter += 1;
-    const last = chunk[0..chunk_layout.last];
-    try reader.readSliceAll(last);
-    cipher.encrypt(last, "", counter, &tag);
-    var chunk_vec = [_][]const u8{
-        chunk,
-        &tag,
-    };
-    try writer.writeVecAll(chunk_vec[0..]);
+    if (chunk_layout.last != 0) {
+        const last = chunk[0..chunk_layout.last];
+        try reader.readSliceAll(last);
+        cipher.encrypt(last, &ad, counter, &tag);
+        std.debug.print("last tag enc = {b64}\n", .{tag});
+        var chunk_vec = [_][]const u8{
+            last,
+            &tag,
+        };
+        try writer.writeVecAll(chunk_vec[0..]);
+    }
     try writer.flush();
 }
 

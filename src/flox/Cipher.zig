@@ -114,7 +114,9 @@ pub const Metadata = struct {
 
 const key_length: comptime_int = aes.key_length;
 const nonce_length: comptime_int = aes.nonce_length;
+
 pub const tag_length: comptime_int = aes.tag_length;
+pub const ad_length: comptime_int = 32;
 
 const Cipher = @This();
 /// key
@@ -143,7 +145,7 @@ pub fn deinit(cipher: *Cipher) void {
 pub fn encrypt(
     cipher: *const Cipher,
     data: []u8,
-    ad: []const u8,
+    ad: *const [ad_length]u8,
     counter: u32,
     tag: *[tag_length]u8,
 ) void {
@@ -156,7 +158,7 @@ pub fn encrypt(
 pub fn decrypt(
     cipher: *const Cipher,
     data: []u8,
-    ad: []const u8,
+    ad: *const [ad_length]u8,
     counter: u32,
     tag: [tag_length]u8,
 ) !void {
@@ -176,7 +178,8 @@ test "Cipher" {
     var cipher: Cipher = try .init(io, allocator, metadata, password);
     defer cipher.deinit();
     const counter: u32 = 42;
-    const ad = "my-additional-data";
+    var ad: [Cipher.ad_length]u8 = undefined;
+    io.random(&ad);
 
     var data: [1024]u8 = undefined;
     io.random(&data);
@@ -188,9 +191,9 @@ test "Cipher" {
 
     try t.expectEqualSlices(u8, &plaintext, &data);
 
-    cipher.encrypt(&data, ad, counter, &tag);
+    cipher.encrypt(&data, &ad, counter, &tag);
     try t.expect(!mem.eql(u8, &data, &plaintext));
 
-    try cipher.decrypt(&data, ad, counter, tag);
+    try cipher.decrypt(&data, &ad, counter, tag);
     try t.expectEqualSlices(u8, &plaintext, &data);
 }
