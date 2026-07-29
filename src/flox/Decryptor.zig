@@ -23,6 +23,10 @@ pub fn open(io: std.Io, path: []const u8) !Decryptor {
     return .{ .file = file };
 }
 
+pub fn deinit(decryptor: *Decryptor, io: std.Io) void {
+    decryptor.file.close(io);
+}
+
 pub fn stream(
     decryptor: *Decryptor,
     io: std.Io,
