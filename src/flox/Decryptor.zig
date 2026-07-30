@@ -6,36 +6,14 @@ const Cipher = @import("Cipher.zig");
 const ChunkLayout = @import("ChunkLayout.zig");
 const Blake3 = std.crypto.hash.Blake3;
 
-fn openInputFile(io: std.Io, path: []const u8) !std.Io.File {
-    var cwd = std.Io.Dir.cwd();
-    var buf: [Header.magic_length]u8 = undefined;
-    const magic = try cwd.readFile(io, path, &buf);
-    if (!mem.eql(u8, magic, &Header.default.magic))
-        return error.NotEncrypted;
-    return cwd.openFile(io, path, .{ .mode = .read_only });
-}
-
-const Decryptor = @This();
-file: std.Io.File,
-
-pub fn open(io: std.Io, path: []const u8) !Decryptor {
-    const file = try openInputFile(io, path);
-    return .{ .file = file };
-}
-
-pub fn deinit(decryptor: *Decryptor, io: std.Io) void {
-    decryptor.file.close(io);
-}
-
 pub fn stream(
-    decryptor: *Decryptor,
     io: std.Io,
     allocator: std.mem.Allocator,
+    input: *std.Io.File,
+    output: *std.Io.File,
     password: []const u8,
-    output_path: []const u8,
-    overwrite: bool,
 ) !void {
-    var file_reader = decryptor.file.reader(io, &.{});
+    var file_reader = input.reader(io, &.{});
     const reader = &file_reader.interface;
 
     var header: Header = undefined;
@@ -69,18 +47,10 @@ pub fn stream(
     blalke3.update(&chunk_layout_encoded);
     blalke3.final(&ad);
 
-    var cwd = std.Io.Dir.cwd();
-
-    var out_af = try cwd.createFileAtomic(io, output_path, .{ .replace = true });
-    defer out_af.deinit(io);
-
-    if (out_af.file_exists and !overwrite)
-        return error.PathAlreadyExsits;
-
     var cipher: Cipher = try .init(io, allocator, cipher_meta, password);
     defer cipher.deinit();
 
-    var file_writer = out_af.file.writer(io, &.{});
+    var file_writer = output.writer(io, &.{});
     const writer = &file_writer.interface;
 
     var tag: [Cipher.tag_length]u8 = undefined;
@@ -103,5 +73,4 @@ pub fn stream(
     }
 
     try writer.flush();
-    try out_af.replace(io);
 }

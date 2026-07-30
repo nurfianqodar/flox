@@ -20,6 +20,9 @@ const Command = union(Tag) {
     /// display help message
     help,
 
+    /// display current version
+    version,
+
     /// encrypt a file
     encrypt: struct {
         const Options = @This();
@@ -142,7 +145,7 @@ const Command = union(Tag) {
                 else if (eqlFlag(arg, "--output", "-o"))
                     options.output = try nextString(iter)
                 else if (eqlFlag(arg, "--password", "-P"))
-                    options.output = try nextString(iter)
+                    options.password = try nextString(iter)
                 else if (eqlFlag(arg, "--force", "-f"))
                     options.force = true
                 else
@@ -153,11 +156,6 @@ const Command = union(Tag) {
 
         fn getInputPath(options: *const Options) ![]const u8 {
             return options.input orelse return error.ArgumentNotEnough;
-        }
-
-        fn generateDecryptor(options: *const Options, io: std.Io) !flox.Decryptor {
-            const decryptor: flox.Decryptor = try .open(io, try options.getInputPath());
-            return decryptor;
         }
 
         fn getOutputPath(options: *const Options) ![]const u8 {
@@ -171,30 +169,60 @@ const Command = union(Tag) {
         }
 
         fn run(options: *const Options, io: std.Io, allocator: mem.Allocator) !void {
+            // var stdout_file = std.Io.File.stdout();
+            // var stdout_writer = stdout_file.writer(io, &.{});
+            // const stdout = &stdout_writer.interface;
+            //
+            // var stdin_file = std.Io.File.stdin();
+            // var stdin_buf: [max_password_length]u8 = undefined;
+            // defer crypto.secureZero(u8, &stdin_buf);
+            // var stdin_reader = stdin_file.reader(io, &stdin_buf);
+            // const stdin = &stdin_reader.interface;
+
+            var cwd = std.Io.Dir.cwd();
+
+            const ipath = options.input orelse return error.ArgumentNotEnough;
+            if (!try flox.utils.isLoxFile(io, ipath)) return error.NotEncrypted;
+            var ifile = try cwd.openFile(io, ipath, .{ .mode = .read_only });
+            defer ifile.close(io);
+
+            const opath = options.output orelse ipath;
+            if (!try flox.utils.isFileExists(io, opath) and !options.force)
+                return error.PathAlreadyExists;
+            var ofile = try cwd.createFileAtomic(io, opath, .{ .replace = true });
+            defer ofile.deinit(io);
+
+            var password_buf: [max_password_length]u8 = undefined;
+            const password = try options.getPassword(io, &password_buf);
+
+            try flox.Decryptor.stream(io, allocator, &ifile, &ofile.file, password);
+            try ofile.replace(io);
+        }
+
+        fn getPassword(options: *const Options, io: std.Io, buf: *[max_password_length]u8) ![]const u8 {
+            if (options.password) |pwd| return pwd;
+
             var stdout_file = std.Io.File.stdout();
             var stdout_writer = stdout_file.writer(io, &.{});
             const stdout = &stdout_writer.interface;
 
-            var stdin_file = std.Io.File.stdin();
-            var stdin_buf: [max_password_length]u8 = undefined;
-            defer crypto.secureZero(u8, &stdin_buf);
-            var stdin_reader = stdin_file.reader(io, &stdin_buf);
-            const stdin = &stdin_reader.interface;
+            var stdin = std.Io.File.stdin();
+            var stdin_reader = stdin.reader(io, buf);
+            const reader = &stdin_reader.interface;
 
-            var decryptor = try options.generateDecryptor(io);
-            defer decryptor.deinit(io);
-
-            const password = options.password orelse blk: {
-                try stdout.print("password: ", .{});
-                const p = try stdin.takeDelimiterInclusive('\n');
-                const p_trim = mem.trim(u8, p, "\n");
-                break :blk p_trim;
+            // password
+            try stdout.print("password: ", .{});
+            try stdout.flush();
+            const p = reader.takeDelimiterInclusive('\n') catch |e| {
+                switch (e) {
+                    error.StreamTooLong => return error.PasswordTooLong,
+                    else => return e,
+                }
             };
-
-            try decryptor.stream(io, allocator, password, try options.getOutputPath(), options.force);
+            const p_trim = mem.trim(u8, p, "\n");
+            return p_trim;
         }
     },
-    version,
 
     fn parse(allocator: mem.Allocator, args: proc.Args) !Command {
         var iter = try args.iterateAllocator(allocator);
@@ -220,9 +248,9 @@ const Command = union(Tag) {
 
     const Tag = enum {
         help,
+        version,
         encrypt,
         decrypt,
-        version,
 
         fn parse(s: []const u8) !Tag {
             if (s.len > 7) return error.InvalidCommand;
