@@ -16,6 +16,8 @@ pub fn stream(
     cipher: *const Cipher,
     chunk_size: u32,
 ) !void {
+    if (chunk_size == 0) return error.InvalidChunkSize;
+
     const input_stat = try input.stat(io);
     var input_reader = input.reader(io, &.{});
     const reader = &input_reader.interface;
