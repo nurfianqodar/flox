@@ -4,8 +4,6 @@ const encryptor = @import("flox/encryptor.zig");
 const decryptor = @import("flox/decryptor.zig");
 
 pub const Cipher = @import("flox/Cipher.zig");
-pub const Header = @import("flox/Header.zig");
-pub const ChunkLayout = @import("flox/ChunkLayout.zig");
 
 pub const encryptStream = encryptor.stream;
 pub const decryptStream = decryptor.stream;

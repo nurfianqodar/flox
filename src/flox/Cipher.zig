@@ -11,6 +11,7 @@ pub const Metadata = struct {
 
     bnonce: [bnonce_length]u8,
     salt: [salt_length]u8,
+    /// memory cost in KiB
     m: u32,
     t: u32,
     p: u24,

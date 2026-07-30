@@ -3,7 +3,7 @@ const math = std.math;
 const Cipher = @import("Cipher.zig");
 
 const ChunkLayout = @This();
-/// max size of chunk
+/// max size of chunk in bytes
 size: u32,
 /// count of chunk with full size
 n: u32,
