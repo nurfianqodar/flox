@@ -4,7 +4,10 @@ const fmt = std.fmt;
 const crypto = std.crypto;
 const ascii = std.ascii;
 const proc = std.process;
+
 const flox = @import("flox");
+const Cipher = flox.Cipher;
+const utils = flox.utils;
 
 pub fn main(init: proc.Init) !void {
     const io = init.io;
@@ -94,16 +97,16 @@ const Command = union(Tag) {
             var cwd = std.Io.Dir.cwd();
 
             const ipath = options.input orelse return error.ArgumentNotEnough;
-            if (try flox.utils.isLoxFile(io, ipath)) return error.AlreadyEncrypted;
+            if (try utils.isLoxFile(io, ipath)) return error.AlreadyEncrypted;
             var ifile = try cwd.openFile(io, ipath, .{ .mode = .read_only });
             defer ifile.close(io);
 
             const opath = options.output orelse ipath;
-            if (try flox.utils.isFileExists(io, opath) and !options.force) return error.PathAlreadyExists;
+            if (try utils.isFileExists(io, opath) and !options.force) return error.PathAlreadyExists;
             var aofile = try cwd.createFileAtomic(io, opath, .{ .replace = true });
             defer aofile.deinit(io);
 
-            const meta = try flox.Cipher.Metadata.init(io, .{
+            const meta: Cipher.Metadata = try .init(io, .{
                 .m = options.m,
                 .t = options.t,
                 .p = options.p,
@@ -113,10 +116,10 @@ const Command = union(Tag) {
             defer crypto.secureZero(u8, &password_buf);
             const password = try options.getPassword(io, &password_buf);
 
-            var cipher = try flox.Cipher.init(io, allocator, meta, password);
+            var cipher: Cipher = try .init(io, allocator, meta, password);
             defer cipher.deinit();
 
-            try flox.Encryptor.stream(
+            try flox.encryptStream(
                 io,
                 allocator,
                 &ifile,
@@ -182,12 +185,12 @@ const Command = union(Tag) {
             var cwd = std.Io.Dir.cwd();
 
             const ipath = options.input orelse return error.ArgumentNotEnough;
-            if (!try flox.utils.isLoxFile(io, ipath)) return error.NotEncrypted;
+            if (!try utils.isLoxFile(io, ipath)) return error.NotEncrypted;
             var ifile = try cwd.openFile(io, ipath, .{ .mode = .read_only });
             defer ifile.close(io);
 
             const opath = options.output orelse ipath;
-            if (!try flox.utils.isFileExists(io, opath) and !options.force)
+            if (!try utils.isFileExists(io, opath) and !options.force)
                 return error.PathAlreadyExists;
             var ofile = try cwd.createFileAtomic(io, opath, .{ .replace = true });
             defer ofile.deinit(io);
@@ -195,7 +198,7 @@ const Command = union(Tag) {
             var password_buf: [max_password_length]u8 = undefined;
             const password = try options.getPassword(io, &password_buf);
 
-            try flox.Decryptor.stream(io, allocator, &ifile, &ofile.file, password);
+            try flox.decryptStream(io, allocator, &ifile, &ofile.file, password);
             try ofile.replace(io);
         }
 
