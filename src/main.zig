@@ -172,16 +172,6 @@ const Command = union(Tag) {
         }
 
         fn run(options: *const Options, io: std.Io, allocator: mem.Allocator) !void {
-            // var stdout_file = std.Io.File.stdout();
-            // var stdout_writer = stdout_file.writer(io, &.{});
-            // const stdout = &stdout_writer.interface;
-            //
-            // var stdin_file = std.Io.File.stdin();
-            // var stdin_buf: [max_password_length]u8 = undefined;
-            // defer crypto.secureZero(u8, &stdin_buf);
-            // var stdin_reader = stdin_file.reader(io, &stdin_buf);
-            // const stdin = &stdin_reader.interface;
-
             var cwd = std.Io.Dir.cwd();
 
             const ipath = options.input orelse return error.ArgumentNotEnough;
@@ -241,9 +231,13 @@ const Command = union(Tag) {
     }
 
     fn run(command: *const Command, io: std.Io, allocator: mem.Allocator) !void {
+        var stdout_file = std.Io.File.stdout();
+        var stdout_writer = stdout_file.writer(io, &.{});
+        const stdout = &stdout_writer.interface;
+
         switch (command.*) {
-            .help => std.debug.print("Help\n", .{}),
-            .version => std.debug.print("Version\n", .{}),
+            .help => try stdout.print("{s}\n", .{help_message}),
+            .version => std.debug.print("flox {s}\n", .{flox.version_string}),
             .encrypt => |opt| try opt.run(io, allocator),
             .decrypt => |opt| try opt.run(io, allocator),
         }
@@ -288,3 +282,34 @@ const Command = union(Tag) {
         return i;
     }
 };
+
+const help_message =
+    \\flox - simple, secure, fast file encryption tool
+    \\
+    \\USAGE:
+    \\  flox <COMMAND> [OPTIONS]
+    \\
+    \\COMMANDS:
+    \\  (e)ncrypt   Encrypt a file
+    \\  (d)ecrypt   Decrypt a file
+    \\  (v)ersion   Display flox version
+    \\  (h)elp      Display this message
+    \\
+    \\OPTIONS:
+    \\  (e)ncrypt:
+    \\    -i  --input        path to input file (required)
+    \\    -o  --output       path to output file (required or use -f)
+    \\    -P  --password     encryption password
+    \\    -c  --chunk-size   chunk size in KiB (default 256 KiB)
+    \\    -m  --memory-cost  argon2 memory cost in KiB (default 65536 KiB)
+    \\    -t  --time-cost    argon2 time cost
+    \\    -p  --parallelism  argon2 parallelism
+    \\    -f  --force        overwrite output if exists
+    \\
+    \\  (d)ecrypt:
+    \\    -i  --input     path to input file (required)
+    \\    -o  --output    path to output file (required or use -f)
+    \\    -P  --password  decryption password
+    \\    -f  --force     overwrite output if exists
+    \\operation success
+;
