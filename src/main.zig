@@ -41,7 +41,7 @@ const Command = union(Tag) {
                 else if (eqlFlag(arg, "--output", "-o"))
                     options.output = try nextString(iter)
                 else if (eqlFlag(arg, "--password", "-P"))
-                    options.output = try nextString(iter)
+                    options.password = try nextString(iter)
                 else if (eqlFlag(arg, "--force", "-f"))
                     options.force = true
                 else if (eqlFlag(arg, "--memory-cost", "-m"))
@@ -58,67 +58,73 @@ const Command = union(Tag) {
             return options;
         }
 
-        fn generateCipher(options: *const Options, io: std.Io, allocator: mem.Allocator) !flox.Cipher {
+        fn getPassword(options: *const Options, io: std.Io, buf: *[max_password_length * 2]u8) ![]const u8 {
+            if (options.password) |pwd| return pwd;
+
             var stdout_file = std.Io.File.stdout();
             var stdout_writer = stdout_file.writer(io, &.{});
             const stdout = &stdout_writer.interface;
 
-            var stdin_file = std.Io.File.stdin();
-            var stdin_buf: [max_password_length * 2]u8 = undefined;
-            defer crypto.secureZero(u8, &stdin_buf);
-            var stdin_reader = stdin_file.reader(io, &stdin_buf);
-            const stdin = &stdin_reader.interface;
+            var stdin = std.Io.File.stdin();
+            var stdin_reader = stdin.reader(io, buf);
+            const reader = &stdin_reader.interface;
 
-            const metadata: flox.Cipher.Metadata = try .init(io, .{
+            // password
+            try stdout.print("password: ", .{});
+            try stdout.flush();
+            const p = try reader.takeDelimiterInclusive('\n');
+            if (p.len > max_password_length) return error.PasswordTooLong;
+            const p_trim = mem.trim(u8, p, "\n");
+
+            // password retype
+            try stdout.print("retype password: ", .{});
+            try stdout.flush();
+            const pr = try reader.takeDelimiterInclusive('\n');
+            if (pr.len > max_password_length) return error.PasswordTooLong;
+            const pr_trim = mem.trim(u8, pr, "\n");
+
+            if (!mem.eql(u8, p_trim, pr_trim)) return error.PasswordNotMatch;
+            return p_trim;
+        }
+
+        fn run(options: *const Options, io: std.Io, allocator: std.mem.Allocator) !void {
+            var cwd = std.Io.Dir.cwd();
+
+            const ipath = options.input orelse return error.ArgumentNotEnough;
+            if (try flox.utils.isLoxFile(io, ipath)) return error.AlreadyEncrypted;
+            var ifile = try cwd.openFile(io, ipath, .{ .mode = .read_only });
+            defer ifile.close(io);
+
+            const opath = options.output orelse ipath;
+            if (try flox.utils.isFileExists(io, opath) and !options.force) return error.PathAlreadyExists;
+            var aofile = try cwd.createFileAtomic(io, opath, .{ .replace = true });
+            defer aofile.deinit(io);
+
+            const meta = try flox.Cipher.Metadata.init(io, .{
                 .m = options.m,
                 .t = options.t,
                 .p = options.p,
             });
 
-            const password = options.password orelse blk: {
-                try stdout.print("password: ", .{});
-                try stdout.flush();
-                const p = try stdin.takeDelimiterInclusive('\n');
-                if (p.len > max_password_length) return error.PasswordTooLong;
-                const trim_p = mem.trim(u8, p, "\n");
+            var password_buf: [max_password_length * 2]u8 = undefined;
+            defer crypto.secureZero(u8, &password_buf);
+            const password = try options.getPassword(io, &password_buf);
 
-                try stdout.print("retype password: ", .{});
-                try stdout.flush();
-                const pr = try stdin.takeDelimiterInclusive('\n');
-                if (pr.len > max_password_length) return error.PasswordTooLong;
-                const trim_pr = mem.trim(u8, pr, "\n");
-
-                if (!mem.eql(u8, trim_p, trim_pr)) return error.PasswordNotMatch;
-                break :blk trim_p;
-            };
-
-            const cipher: flox.Cipher = try .init(io, allocator, metadata, password);
-            return cipher;
-        }
-
-        fn generateEncryptor(options: *const Options, io: std.Io) !flox.Encryptor {
-            const output = options.output orelse (options.input orelse return error.ArgumentNotEnough);
-            const encryptor: flox.Encryptor = try .create(io, output, options.force);
-            return encryptor;
-        }
-
-        fn run(options: *const Options, io: std.Io, allocator: std.mem.Allocator) !void {
-            var encryptor = try options.generateEncryptor(io);
-            defer encryptor.deinit(io);
-
-            var cipher = try options.generateCipher(io, allocator);
+            var cipher = try flox.Cipher.init(io, allocator, meta, password);
             defer cipher.deinit();
 
-            try encryptor.stream(
+            try flox.Encryptor.stream(
                 io,
                 allocator,
-                (options.input orelse return error.ArgumentNotEnough),
+                &ifile,
+                &aofile.file,
                 &cipher,
                 options.chunk_size,
             );
-            try encryptor.save(io);
+            try aofile.replace(io);
         }
     },
+
     decrypt: struct {
         const Options = @This();
 

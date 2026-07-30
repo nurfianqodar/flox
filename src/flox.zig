@@ -5,6 +5,7 @@ pub const Decryptor = @import("flox/Decryptor.zig");
 pub const Cipher = @import("flox/Cipher.zig");
 pub const Header = @import("flox/Header.zig");
 pub const ChunkLayout = @import("flox/ChunkLayout.zig");
+pub const utils = @import("flox/utils.zig");
 
 test "encrypt-decrypt" {
     const t = std.testing;
