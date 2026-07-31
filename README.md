@@ -154,11 +154,6 @@ flox encrypt
     -p 2
   ```
 
-> [!WARNING]
-> Avoid passing passwords via `--password` (`-P`).
-> Command-line arguments may be stored in shell history.
-> Use the interactive password prompt instead.
-
 ### Decrypt File
 
 #### Command
@@ -221,6 +216,8 @@ flox decrypt
   flox d -i archive.tar.flox -f
   ```
   The decrypted file replaces the original encrypted file.
+
+### Security Note
 
 > [!WARNING]
 > Avoid passing passwords via `--password` (`-P`).
