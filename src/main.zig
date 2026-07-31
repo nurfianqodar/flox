@@ -183,7 +183,7 @@ const Command = union(Tag) {
             defer ifile.close(io);
 
             const opath = options.output orelse ipath;
-            if (!try flox.isFileExists(io, opath) and !options.force)
+            if (try flox.isFileExists(io, opath) and !options.force)
                 return error.PathAlreadyExists;
             var ofile = try cwd.createFileAtomic(io, opath, .{ .replace = true });
             defer ofile.deinit(io);
