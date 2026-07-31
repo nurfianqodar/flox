@@ -1,5 +1,7 @@
 # flox
 
+![Flox Logo](assets/logo.svg)
+
 **Your files should stay yours.**
 
 Whether you're storing documents in the cloud, sharing
