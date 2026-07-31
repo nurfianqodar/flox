@@ -12,30 +12,37 @@ last: u32,
 
 pub const encoded_length: comptime_int = 12;
 
-pub fn calculate(chunk_size: u32, target_size: u64) !ChunkLayout {
+pub fn compute(chunk_size: u32, target_size: u64) !ChunkLayout {
     if (chunk_size == 0) return error.InvalidChunkSize;
+    std.debug.print("chunk size = {d}\n", .{chunk_size});
     const n = math.cast(u32, (target_size / chunk_size)) orelse return error.Overflow;
     const last = math.cast(u32, target_size % chunk_size) orelse return error.Overflow;
     return .{ .size = chunk_size, .n = n, .last = last };
 }
 
+/// encoded as size||n||last
 pub fn encode(layout: *const ChunkLayout, buf: *[encoded_length]u8) void {
-    var w: std.Io.Writer = .fixed(buf);
-    w.writeInt(u32, layout.size, .little) catch unreachable;
-    w.writeInt(u32, layout.n, .little) catch unreachable;
-    w.writeInt(u32, layout.last, .little) catch unreachable;
+    var writer: std.Io.Writer = .fixed(buf);
+    writer.writeInt(u32, layout.size, .little) catch unreachable;
+    writer.writeInt(u32, layout.n, .little) catch unreachable;
+    writer.writeInt(u32, layout.last, .little) catch unreachable;
 }
 
+/// encoded as size||n||last
 pub fn decode(buf: *const [encoded_length]u8) !ChunkLayout {
     var layout: ChunkLayout = undefined;
-    var r: std.Io.Reader = .fixed(buf);
+    var reader: std.Io.Reader = .fixed(buf);
 
-    layout.size = r.takeInt(u32, .little) catch unreachable;
-    layout.n = r.takeInt(u32, .little) catch unreachable;
-    layout.last = r.takeInt(u32, .little) catch unreachable;
+    layout.size = reader.takeInt(u32, .little) catch unreachable;
+    layout.n = reader.takeInt(u32, .little) catch unreachable;
+    layout.last = reader.takeInt(u32, .little) catch unreachable;
 
-    if (layout.size == 0) return error.InvalidChunkSize;
-    if (layout.last > layout.size) return error.InvalidChunkSize;
+    try layout.validate();
 
     return layout;
+}
+
+fn validate(layout: *const ChunkLayout) !void {
+    if (layout.size == 0) return error.InvalidChunkSize;
+    if (layout.last > layout.size) return error.InvalidChunkLayout;
 }

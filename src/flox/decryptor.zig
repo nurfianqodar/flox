@@ -6,6 +6,7 @@ const Cipher = @import("Cipher.zig");
 const ChunkLayout = @import("ChunkLayout.zig");
 const Blake3 = std.crypto.hash.Blake3;
 
+/// decrypt data from input to output with streaming
 pub fn stream(
     io: std.Io,
     allocator: std.mem.Allocator,
@@ -20,6 +21,7 @@ pub fn stream(
     var cipher_meta_encoded: [Cipher.Metadata.encoded_length]u8 = undefined;
     var chunk_layout_encoded: [ChunkLayout.encoded_length]u8 = undefined;
 
+    // encoded as magic||version||metadata||chunk_layout
     var header_vec = [_][]u8{
         &header.magic,
         &header.version,
@@ -40,6 +42,9 @@ pub fn stream(
     }
 
     var ad: [Cipher.ad_length]u8 = undefined;
+
+    // generate additional data with blake3
+    // order: magic||version||cipher_meta||chunk_layout
     var blalke3: Blake3 = .init(.{});
     blalke3.update(&header.magic);
     blalke3.update(&header.version);

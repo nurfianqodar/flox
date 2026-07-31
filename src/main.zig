@@ -7,7 +7,6 @@ const proc = std.process;
 
 const flox = @import("flox");
 const Cipher = flox.Cipher;
-const utils = flox.utils;
 
 pub fn main(init: proc.Init) !void {
     const io = init.io;
@@ -34,10 +33,12 @@ const Command = union(Tag) {
         output: ?[]const u8 = null,
         password: ?[]const u8 = null,
         force: bool = false,
-        m: u32 = 1024 * 64,
+        /// memory cost in MiB
+        m: f32 = 64,
         t: u32 = 1,
         p: u24 = 1,
-        chunk_size: u32 = 1024 * 512,
+        /// chunk size in MiB
+        chunk_size: f32 = 0.5,
 
         fn parse(iter: *proc.Args.Iterator) !Options {
             var options: Options = .{};
@@ -51,13 +52,13 @@ const Command = union(Tag) {
                 else if (eqlFlag(arg, "--force", "-f"))
                     options.force = true
                 else if (eqlFlag(arg, "--memory-cost", "-m"))
-                    options.m = try nextInt(u32, iter)
+                    options.m = try nextFloat(f32, iter)
                 else if (eqlFlag(arg, "--time-cost", "-t"))
                     options.t = try nextInt(u32, iter)
                 else if (eqlFlag(arg, "--parallelism", "-p"))
                     options.p = try nextInt(u24, iter)
                 else if (eqlFlag(arg, "--chunk-size", "-c"))
-                    options.chunk_size = try nextInt(u32, iter)
+                    options.chunk_size = try nextFloat(f32, iter)
                 else
                     return error.InvalidOptions;
             }
@@ -97,17 +98,18 @@ const Command = union(Tag) {
             var cwd = std.Io.Dir.cwd();
 
             const ipath = options.input orelse return error.ArgumentNotEnough;
-            if (try utils.isLoxFile(io, ipath)) return error.AlreadyEncrypted;
+            if (try flox.isFloxFile(io, ipath)) return error.AlreadyEncrypted;
             var ifile = try cwd.openFile(io, ipath, .{ .mode = .read_only });
             defer ifile.close(io);
 
             const opath = options.output orelse ipath;
-            if (try utils.isFileExists(io, opath) and !options.force) return error.PathAlreadyExists;
+            if (try flox.isFileExists(io, opath) and !options.force) return error.PathAlreadyExists;
             var aofile = try cwd.createFileAtomic(io, opath, .{ .replace = true });
             defer aofile.deinit(io);
 
             const meta: Cipher.Metadata = try .init(io, .{
-                .m = options.m,
+                // cipher meta accept in KiB while options in MiB
+                .m = @intFromFloat(options.m * 1024.0),
                 .t = options.t,
                 .p = options.p,
             });
@@ -125,7 +127,8 @@ const Command = union(Tag) {
                 &ifile,
                 &aofile.file,
                 &cipher,
-                options.chunk_size,
+                // encrypt stream receive in bytes while options in MiB
+                @intFromFloat(options.chunk_size * 1024.0 * 1024.0),
             );
             try aofile.replace(io);
         }
@@ -175,12 +178,12 @@ const Command = union(Tag) {
             var cwd = std.Io.Dir.cwd();
 
             const ipath = options.input orelse return error.ArgumentNotEnough;
-            if (!try utils.isLoxFile(io, ipath)) return error.NotEncrypted;
+            if (!try flox.isFloxFile(io, ipath)) return error.NotEncrypted;
             var ifile = try cwd.openFile(io, ipath, .{ .mode = .read_only });
             defer ifile.close(io);
 
             const opath = options.output orelse ipath;
-            if (!try utils.isFileExists(io, opath) and !options.force)
+            if (!try flox.isFileExists(io, opath) and !options.force)
                 return error.PathAlreadyExists;
             var ofile = try cwd.createFileAtomic(io, opath, .{ .replace = true });
             defer ofile.deinit(io);
@@ -281,6 +284,12 @@ const Command = union(Tag) {
         const i = try fmt.parseInt(T, v, 10);
         return i;
     }
+
+    fn nextFloat(comptime T: type, iter: *proc.Args.Iterator) !T {
+        const v = iter.next() orelse return error.ValueRequired;
+        const i = try fmt.parseFloat(T, v);
+        return i;
+    }
 };
 
 const help_message =
@@ -300,8 +309,8 @@ const help_message =
     \\    -i  --input        path to input file (required)
     \\    -o  --output       path to output file (required or use -f)
     \\    -P  --password     encryption password
-    \\    -c  --chunk-size   chunk size in KiB (default 256 KiB)
-    \\    -m  --memory-cost  argon2 memory cost in KiB (default 65536 KiB)
+    \\    -c  --chunk-size   chunk size in MiB (default 0.5 MiB)
+    \\    -m  --memory-cost  argon2 memory cost in MiB (default 64.0 MiB)
     \\    -t  --time-cost    argon2 time cost
     \\    -p  --parallelism  argon2 parallelism
     \\    -f  --force        overwrite output if exists
