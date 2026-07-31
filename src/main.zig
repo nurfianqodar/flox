@@ -311,8 +311,8 @@ const help_message =
     \\    -P  --password     encryption password
     \\    -c  --chunk-size   chunk size in MiB (default 0.5 MiB)
     \\    -m  --memory-cost  argon2 memory cost in MiB (default 64.0 MiB)
-    \\    -t  --time-cost    argon2 time cost
-    \\    -p  --parallelism  argon2 parallelism
+    \\    -t  --time-cost    argon2 time cost (default 1)
+    \\    -p  --parallelism  argon2 parallelism (default 1)
     \\    -f  --force        overwrite output if exists
     \\
     \\  (d)ecrypt:
@@ -320,5 +320,4 @@ const help_message =
     \\    -o  --output    path to output file (required or use -f)
     \\    -P  --password  decryption password
     \\    -f  --force     overwrite output if exists
-    \\operation success
 ;
