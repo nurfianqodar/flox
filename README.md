@@ -1,6 +1,6 @@
 # flox
 
-![Flox Logo](assets/logo.svg)
+![Flox Logo](assets/logo.png)
 
 **Your files should stay yours.**
 
