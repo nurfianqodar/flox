@@ -1,18 +1,30 @@
-# flox
+# flox: simple, secure, fast, lightweight file encryption tool
 
 ![Flox Logo](assets/logo.png)
 
-**Your files should stay yours.**
+**The Problem:**
 
-Whether you're storing documents in the cloud, sharing
-backups, or archiving sensitive data, there are times when
-you don't want anyone else including the storage
-provider to be able to read your files.
+- Some cloud storage providers use customer data to train
+  their AI models.
+- You want to encrypt files without installing large, feature-heavy
+  encryption tools.
+- You want to encrypt highly compressed archives, but archive
+  formats often lack built-in encryption.
+- Public key encryption requires managing keys and more complex
+  commands, while all you want is to protect a file with a memorable
+  password.
 
-**flox** is a fast, secure, password-based file encryption
-tool. Protect files with a password you can remember,
-then upload or share the encrypted file with confidence.
-Without the correct password, the file remains unreadable.
+**The Solution:**
+
+- Encrypt your files before uploading them to cloud storage.
+- Use a tool dedicated solely to file encryption.
+- Choose an encryption tool that efficiently handles large files.
+- Use password-based encryption for a simple and convenient workflow.
+
+**flox** is built to solve exactly these problems. It is a lightweight,
+password-based file encryption tool designed to be simple, secure, and
+efficient. It focuses on doing one thing well: encrypting and decrypting
+files of any size with a memorable password.
 
 ## Features
 
