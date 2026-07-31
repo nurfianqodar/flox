@@ -240,7 +240,7 @@ const Command = union(Tag) {
 
         switch (command.*) {
             .help => try stdout.print("{s}\n", .{help_message}),
-            .version => std.debug.print("flox {s}\n", .{flox.version_string}),
+            .version => try stdout.print("flox {s}\n", .{flox.version_string}),
             .encrypt => |opt| try opt.run(io, allocator),
             .decrypt => |opt| try opt.run(io, allocator),
         }

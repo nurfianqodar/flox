@@ -24,7 +24,6 @@ pub const Metadata = struct {
 
     // encoded as bnonce||salt||m||t||p
     pub fn encode(metadata: *const Metadata, out: *[encoded_length]u8) void {
-        std.debug.print("meta = {any}\n", .{metadata});
         var w: std.Io.Writer = .fixed(out);
         w.writeAll(&metadata.bnonce) catch unreachable;
         w.writeAll(&metadata.salt) catch unreachable;
@@ -42,7 +41,6 @@ pub const Metadata = struct {
         metadata.m = r.takeInt(u32, .little) catch unreachable;
         metadata.t = r.takeInt(u32, .little) catch unreachable;
         metadata.p = r.takeInt(u24, .little) catch unreachable;
-        std.debug.print("meta = {any}\n", .{metadata});
         try metadata.validate();
         return metadata;
     }

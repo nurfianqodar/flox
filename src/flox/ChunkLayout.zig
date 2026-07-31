@@ -14,7 +14,6 @@ pub const encoded_length: comptime_int = 12;
 
 pub fn compute(chunk_size: u32, target_size: u64) !ChunkLayout {
     if (chunk_size == 0) return error.InvalidChunkSize;
-    std.debug.print("chunk size = {d}\n", .{chunk_size});
     const n = math.cast(u32, (target_size / chunk_size)) orelse return error.Overflow;
     const last = math.cast(u32, target_size % chunk_size) orelse return error.Overflow;
     return .{ .size = chunk_size, .n = n, .last = last };
