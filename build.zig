@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
     // ================================================
     // library
     // ================================================
-    const lib_mod = b.createModule(.{
+    const lib_mod = b.addModule("flox", .{
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("src/flox.zig"),
