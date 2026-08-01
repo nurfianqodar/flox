@@ -1,7 +1,15 @@
 .{
     .name = .flox,
-    .version = "0.0.1",
+    .version = "0.1.0",
     .minimum_zig_version = "0.16.0",
-    .paths = .{""},
+    .paths = .{
+        "assets",
+        "src",
+        ".gitignore",
+        "build.zig",
+        "build.zig.zon",
+        "LICENSE",
+        "README.md",
+    },
     .fingerprint = 0xc27fcbe1d8b60ae0,
 }
