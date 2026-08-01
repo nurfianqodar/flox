@@ -8,7 +8,7 @@ const Cipher = @import("Cipher.zig");
 const ChunkLayout = @import("ChunkLayout.zig");
 const utils = @import("utils.zig");
 
-/// encrypt data from input to output with streaming
+/// streamming encrypt data from input to output
 pub fn stream(
     io: std.Io,
     allocator: std.mem.Allocator,
@@ -46,6 +46,7 @@ pub fn stream(
 
     // generate additional data with blake3
     // order: magic||version||cipher_meta||chunk_layout
+    // DON'T CHANGE THE ORDER BEFORE CHECKING `decryptor.stream`
     var blalke3: Blake3 = .init(.{});
     blalke3.update(&Header.default.magic);
     blalke3.update(&Header.default.version);
@@ -74,6 +75,10 @@ pub fn stream(
         };
         try writer.writeVecAll(chunk_vec[0..]);
     }
+
+    // target data is too large
+    if (counter == std.math.maxInt(u32)) return error.Overflow;
+
     counter += 1;
     if (chunk_layout.last != 0) {
         const last = chunk[0..chunk_layout.last];
@@ -85,6 +90,7 @@ pub fn stream(
         };
         try writer.writeVecAll(chunk_vec[0..]);
     }
+
     try writer.flush();
 }
 

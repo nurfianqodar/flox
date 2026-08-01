@@ -1,12 +1,13 @@
 const std = @import("std");
 const mem = std.mem;
 const crypto = std.crypto;
+
 const Header = @import("Header.zig");
 const Cipher = @import("Cipher.zig");
 const ChunkLayout = @import("ChunkLayout.zig");
 const Blake3 = std.crypto.hash.Blake3;
 
-/// decrypt data from input to output with streaming
+/// streamming decrypt data from input file to output file
 pub fn stream(
     io: std.Io,
     allocator: std.mem.Allocator,
@@ -22,6 +23,7 @@ pub fn stream(
     var chunk_layout_encoded: [ChunkLayout.encoded_length]u8 = undefined;
 
     // encoded as magic||version||metadata||chunk_layout
+    // DON'T CHANGE THE ORDER WITHOUT CHECKING `encryptor.stream`
     var header_vec = [_][]u8{
         &header.magic,
         &header.version,
@@ -59,6 +61,7 @@ pub fn stream(
     const writer = &file_writer.interface;
 
     var tag: [Cipher.tag_length]u8 = undefined;
+
     var counter: u32 = 0;
     for (0..chunk_layout.n) |c| {
         counter = @intCast(c);
@@ -68,7 +71,14 @@ pub fn stream(
         try writer.writeAll(chunk);
     }
 
+    // encrypted data source too large so i think i'ts save to cancel
+    // encryption process with this error
+    if (counter == std.math.maxInt(u32)) return error.Overflow;
+
+    // add one counter before next encryption
+    // to avoid nonce reuse
     counter += 1;
+
     if (chunk_layout.last != 0) {
         const last = chunk[0..chunk_layout.last];
         var chunk_vec = [_][]u8{ last, &tag };
