@@ -4,6 +4,9 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // ================================================
+    // library
+    // ================================================
     const lib_mod = b.createModule(.{
         .target = target,
         .optimize = optimize,
@@ -17,15 +20,9 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(lib);
 
-    const lib_test = b.addTest(.{
-        .name = "lib-test",
-        .root_module = lib.root_module,
-    });
-
-    const test_step = b.step("test", "run unit test");
-    const run_test = b.addRunArtifact(lib_test);
-    test_step.dependOn(&run_test.step);
-    test_step.dependOn(b.getInstallStep());
+    // ================================================
+    // exe
+    // ================================================
 
     const exe_mod = b.createModule(.{
         .target = target,
@@ -50,4 +47,18 @@ pub fn build(b: *std.Build) void {
     if (b.args) |args| {
         run_exe.addArgs(args);
     }
+
+    // ================================================
+    // tests
+    // ================================================
+
+    const lib_test = b.addTest(.{
+        .name = "lib-test",
+        .root_module = lib.root_module,
+    });
+
+    const test_step = b.step("test", "run unit test");
+    const run_test = b.addRunArtifact(lib_test);
+    test_step.dependOn(&run_test.step);
+    test_step.dependOn(b.getInstallStep());
 }

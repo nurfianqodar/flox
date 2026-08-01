@@ -1,17 +1,24 @@
+//! Define content chunks layout
+
 const std = @import("std");
 const math = std.math;
+
 const Cipher = @import("Cipher.zig");
 
 const ChunkLayout = @This();
 /// max size of chunk in bytes
 size: u32,
+
 /// count of chunk with full size
 n: u32,
-/// last chunk size
+
+/// last chunk size in bytes
 last: u32,
 
+/// chunk layout encoded buffer length
 pub const encoded_length: comptime_int = 12;
 
+/// compute chunk layout based on chunk size and target file size
 pub fn compute(chunk_size: u32, target_size: u64) !ChunkLayout {
     if (chunk_size == 0) return error.InvalidChunkSize;
     const n = math.cast(u32, (target_size / chunk_size)) orelse return error.Overflow;
@@ -41,7 +48,8 @@ pub fn decode(buf: *const [encoded_length]u8) !ChunkLayout {
     return layout;
 }
 
+/// validate the layout
 fn validate(layout: *const ChunkLayout) !void {
     if (layout.size == 0) return error.InvalidChunkSize;
-    if (layout.last > layout.size) return error.InvalidChunkLayout;
+    if (layout.last >= layout.size) return error.InvalidChunkLayout;
 }

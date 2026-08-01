@@ -29,17 +29,32 @@ const Command = union(Tag) {
     encrypt: struct {
         const Options = @This();
 
+        /// input file is required
         input: ?[]const u8 = null,
+
+        /// output file is required
         output: ?[]const u8 = null,
+
+        /// password prompted if ommited
         password: ?[]const u8 = null,
+
+        /// overwrite output file if exists
         force: bool = false,
-        /// memory cost in MiB
+
+        /// argon2id memory cost in MiB
         m: f32 = 64,
+
+        /// argon2id time cost
         t: u32 = 1,
+
+        /// argon2id parallelism
         p: u24 = 1,
+
         /// chunk size in MiB
         chunk_size: f32 = 0.5,
 
+        /// parse argument iterator after exe path and command
+        /// consumed
         fn parse(iter: *proc.Args.Iterator) !Options {
             var options: Options = .{};
             while (iter.next()) |arg| {

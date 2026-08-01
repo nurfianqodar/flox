@@ -1,28 +1,44 @@
+//! cipher for encrypt and decrypt data
+
 const std = @import("std");
 const mem = std.mem;
 const crypto = std.crypto;
 const aes = crypto.aead.aes_gcm.Aes256Gcm;
 const ar2 = crypto.pwhash.argon2;
 
+/// non pirvate cipher metadata, saved at header
 pub const Metadata = struct {
     pub const bnonce_length: comptime_int = nonce_length - 4;
     pub const salt_length: comptime_int = 16;
     pub const encoded_length: comptime_int = bnonce_length + salt_length + 4 + 4 + 3;
 
+    /// base nonce (combine with counter to get nonce)
     bnonce: [bnonce_length]u8,
+
+    /// argon2 salt
     salt: [salt_length]u8,
-    /// memory cost in KiB
+
+    /// argon2 memory cost in KiB
     m: u32,
+
+    /// argin2 time cost
     t: u32,
+
+    /// argin2 parallelism
     p: u24,
 
+    /// options for generate metadata
     pub const MetadataOptions = struct {
-        m: u32,
-        t: u32,
-        p: u24,
+        // argon2 memory cost in KiB
+        m: u32 = 1024 * 64,
+        /// argon2 iteration cost
+        t: u32 = 1,
+        /// argon2 parallelism
+        p: u24 = 1,
     };
 
-    // encoded as bnonce||salt||m||t||p
+    /// encode metadata into a buffer.
+    /// encoded as bnonce||salt||m||t||p
     pub fn encode(metadata: *const Metadata, out: *[encoded_length]u8) void {
         var w: std.Io.Writer = .fixed(out);
         w.writeAll(&metadata.bnonce) catch unreachable;
@@ -32,7 +48,8 @@ pub const Metadata = struct {
         w.writeInt(u24, metadata.p, .little) catch unreachable;
     }
 
-    // encoded as bnonce||salt||m||t||p
+    /// decode metadata from a buffer and validate it.
+    /// encoded as bnonce||salt||m||t||p
     pub fn decode(buf: *const [encoded_length]u8) !Metadata {
         var metadata: Metadata = undefined;
         var r: std.Io.Reader = .fixed(buf);
@@ -45,6 +62,7 @@ pub const Metadata = struct {
         return metadata;
     }
 
+    /// generate new metadata with random secure bnonce and salt
     pub fn init(io: std.Io, options: MetadataOptions) !Metadata {
         var metadata: Metadata = undefined;
         try io.randomSecure(&metadata.bnonce);
@@ -56,11 +74,15 @@ pub const Metadata = struct {
         return metadata;
     }
 
+    /// generate nonce from bnonce || counter (total length 12 bytes)
     inline fn deriveNonce(metadata: *const Metadata, counter: u32, out: *[nonce_length]u8) void {
         @memcpy(out[0..bnonce_length], &metadata.bnonce);
         mem.writeInt(u32, @ptrCast(out[bnonce_length..]), counter, .little);
     }
 
+    /// validate memory cost, time cost, and parallelism
+    ///
+    /// TODO: ensure valid for argon2id
     fn validate(metadata: *const Metadata) !void {
         if (metadata.m == 0)
             return error.InvalidMemoryCost;
@@ -70,6 +92,7 @@ pub const Metadata = struct {
             return error.InvalidParallelism;
     }
 
+    /// generate key from password with metadata
     fn generateKey(
         metadata: *const Metadata,
         io: std.Io,
@@ -89,6 +112,7 @@ pub const Metadata = struct {
         );
     }
 
+    /// zeroize metadata fields
     fn deinit(metadata: *Metadata) void {
         crypto.secureZero(u8, &metadata.salt);
         crypto.secureZero(u8, &metadata.bnonce);
@@ -115,15 +139,22 @@ pub const Metadata = struct {
     }
 };
 
+/// aes256gcm key length
 const key_length: comptime_int = aes.key_length;
+
+/// aes256gcm nonce length
 const nonce_length: comptime_int = aes.nonce_length;
 
+/// aes256gcm tag length
 pub const tag_length: comptime_int = aes.tag_length;
+
+/// aes256gcm additional data length
 pub const ad_length: comptime_int = 32;
 
 const Cipher = @This();
 /// key
 key: [key_length]u8,
+
 /// cipher metadata
 metadata: Metadata,
 
@@ -140,11 +171,15 @@ pub fn init(
     return cipher;
 }
 
+/// secure zero metadata and key
 pub fn deinit(cipher: *Cipher) void {
     crypto.secureZero(u8, &cipher.key);
     cipher.metadata.deinit();
 }
 
+/// encrypt data inplace.
+/// nonce derived from bnonce + counter.
+/// authentication tag writen to tag buffer
 pub fn encrypt(
     cipher: *const Cipher,
     data: []u8,
@@ -158,6 +193,8 @@ pub fn encrypt(
     aes.encrypt(data, tag, data, ad, nonce, cipher.key);
 }
 
+/// decrypt data inplace.
+/// nonce derived from bnonce + counter.
 pub fn decrypt(
     cipher: *const Cipher,
     data: []u8,
