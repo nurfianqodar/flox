@@ -41,6 +41,9 @@ files of any size with a memorable password.
 
 ### Build from source
 
+> [!NOTE]
+> Require zig 0.16.0 ([see downloads](https://ziglang.org/download/))
+
 1. Clone the repository.
 
 ```bash
@@ -92,7 +95,8 @@ flox encrypt
 | --------------------- | --------- | ----------------------------------------------- | ------------------- |
 | `--input`, `-i`       | `PATH`    | **Required.** Input file path.                  | —                   |
 | `--output`, `-o`      | `PATH`    | Output file path. Required unless `-f` is used. | Input file path     |
-| `--password`, `-P`    | `string`  | Encryption password.                            | Prompted if omitted |
+| `--password`, `-P`    | `string`  | Encryption password.                            | `FLOX_PASSWORD` env |
+| `--interactive`, `-I` | —         | Prompt password interactively                   | `false`             |
 | `--chunk-size`, `-c`  | `float32` | Chunk size (MiB).                               | `0.5`               |
 | `--memory-cost`, `-m` | `float32` | Argon2 memory cost (MiB).                       | `64.0`              |
 | `--time-cost`, `-t`   | `uint32`  | Argon2 time cost.                               | `1`                 |
@@ -101,16 +105,10 @@ flox encrypt
 
 #### Examples
 
-- Encrypt a file (password will be prompted)
+- Encrypt a file with prompted password
 
   ```bash
-  flox encrypt -i document.pdf -o document.pdf.flox
-  ```
-
-- Encrypt using the short command
-
-  ```bash
-  flox e -i document.pdf -o document.pdf.flox
+  flox encrypt -i document.pdf -o document.pdf.flox -I
   ```
 
 - Encrypt with a password from the command line
@@ -119,10 +117,11 @@ flox encrypt
   flox e -i document.pdf -o document.pdf.flox -P "my-secret-password"
   ```
 
-- Encrypt and overwrite the input file
+- Encrypt with a password from environment variable
 
   ```bash
-  flox e -i document.pdf -f
+  export FLOX_PASSWORD="my-secret-password"
+  flox e -i document.pdf -o document.pdf.flox
   ```
 
 - Encrypt with a larger chunk size
@@ -170,34 +169,21 @@ flox decrypt
 
 #### Options
 
-| Flag               | Type     | Description                                     | Default             |
-| ------------------ | -------- | ----------------------------------------------- | ------------------- |
-| `--input`, `-i`    | `PATH`   | **Required.** Input file path.                  | —                   |
-| `--output`, `-o`   | `PATH`   | Output file path. Required unless `-f` is used. | Input file path     |
-| `--password`, `-P` | `string` | Encryption password.                            | Prompted if omitted |
-| `--force`, `-f`    | —        | Overwrite the output file if it exists.         | `false`             |
+| Flag                  | Type     | Description                                     | Default             |
+| --------------------- | -------- | ----------------------------------------------- | ------------------- |
+| `--input`, `-i`       | `PATH`   | **Required.** Input file path.                  | —                   |
+| `--output`, `-o`      | `PATH`   | Output file path. Required unless `-f` is used. | Input file path     |
+| `--password`, `-P`    | `string` | Encryption password.                            | `FLOX_PASSWORD` env |
+| `--interactive`, `-I` | —        | Prompt password interactively                   | `false`             |
+| `--force`, `-f`       | —        | Overwrite the output file if it exists.         | `false`             |
 
 #### Examples
-
-- Decrypt a file
-
-  ```bash
-  flox decrypt -i archive.tar.flox -o archive.tar
-  ```
-
-- Use the short command
-
-  ```bash
-  flox d -i archive.tar.flox -o archive.tar
-  ```
 
 - Enter the password interactively
 
   ```bash
-  flox d -i archive.tar.flox -o archive.tar
+  flox d -i archive.tar.flox -o archive.tar -I
   ```
-
-  Since `--password` is omitted, `flox` prompts for the password.
 
 - Provide the password from the command line
 
@@ -205,17 +191,23 @@ flox decrypt
   flox d -i archive.tar.flox -o archive.tar -P "my-secret-password"
   ```
 
-- Overwrite the output file if it already exists
+- Provide the password from environment variable
 
   ```bash
-  flox d -i archive.tar.flox -o archive.tar -f
+  export FLOX_PASSWORD="my-secret-password"
+  flox d -i archive.tar.flox -o archive.tar
   ```
 
-- Decrypt in place
-  ```bash
-  flox d -i archive.tar.flox -f
-  ```
-  The decrypted file replaces the original encrypted file.
+### Note
+
+> [!NOTE]
+> Password precedence:
+>
+> 1. `-I` (`--interactive`) and `-P` (`--password`) are mutually exclusive and cannot be used together.
+> 2. If `-I` is provided, `flox` reads the password interactively.
+> 3. If `-P` is provided, `flox` uses the password supplied on the command line.
+> 4. If neither `-I` nor `-P` is provided, `flox` reads the password from the `FLOX_PASSWORD` environment variable.
+> 5. If no password is available from any of the above sources, `flox` returns `PasswordNotProvided`.
 
 ### Security Note
 
