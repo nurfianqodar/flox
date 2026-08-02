@@ -391,8 +391,9 @@ const help_message =
     \\    -f  --force        overwrite output if exists
     \\
     \\  (d)ecrypt:
-    \\    -i  --input     path to input file (required)
-    \\    -o  --output    path to output file (required or use -f)
-    \\    -P  --password  decryption password
-    \\    -f  --force     overwrite output if exists
+    \\    -i  --input        path to input file (required)
+    \\    -o  --output       path to output file (required or use -f)
+    \\    -P  --password     decryption password
+    \\    -I  --interactive  input password interactively
+    \\    -f  --force        overwrite output if exists
 ;
