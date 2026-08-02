@@ -14,8 +14,10 @@ pub fn main(init: proc.Init) !void {
     const args = init.minimal.args;
 
     const command: Command = try .parse(allocator, args);
-    try command.run(io, allocator);
+    try command.run(io, allocator, init.environ_map);
 }
+
+pub const environ_password_key: []const u8 = "FLOX_PASSWORD";
 
 const Command = union(Tag) {
     const max_password_length: comptime_int = 1024;
@@ -40,6 +42,9 @@ const Command = union(Tag) {
 
         /// overwrite output file if exists
         force: bool = false,
+
+        /// interactive
+        interactive: bool = false,
 
         /// argon2id memory cost in MiB
         m: f32 = 64,
@@ -66,6 +71,8 @@ const Command = union(Tag) {
                     options.password = try nextString(iter)
                 else if (eqlFlag(arg, "--force", "-f"))
                     options.force = true
+                else if (eqlFlag(arg, "--interactive", "-I"))
+                    options.interactive = true
                 else if (eqlFlag(arg, "--memory-cost", "-m"))
                     options.m = try nextFloat(f32, iter)
                 else if (eqlFlag(arg, "--time-cost", "-t"))
@@ -80,36 +87,59 @@ const Command = union(Tag) {
             return options;
         }
 
-        fn getPassword(options: *const Options, io: std.Io, buf: *[max_password_length * 2]u8) ![]const u8 {
-            if (options.password) |pwd| return pwd;
+        fn getPassword(
+            options: *const Options,
+            io: std.Io,
+            env_map: *proc.Environ.Map,
+            buf: *[max_password_length * 2]u8,
+        ) ![]const u8 {
+            if (options.password) |pwd| {
+                // avoid using double password options
+                if (options.interactive) return error.AmbiguousOptions;
+                return pwd;
+            }
 
-            var stdout_file = std.Io.File.stdout();
-            var stdout_writer = stdout_file.writer(io, &.{});
-            const stdout = &stdout_writer.interface;
+            if (options.interactive) {
+                var stdout_file = std.Io.File.stdout();
+                var stdout_writer = stdout_file.writer(io, &.{});
+                const stdout = &stdout_writer.interface;
 
-            var stdin = std.Io.File.stdin();
-            var stdin_reader = stdin.reader(io, buf);
-            const reader = &stdin_reader.interface;
+                var stdin = std.Io.File.stdin();
+                var stdin_reader = stdin.reader(io, buf);
+                const reader = &stdin_reader.interface;
 
-            // password
-            try stdout.print("password: ", .{});
-            try stdout.flush();
-            const p = try reader.takeDelimiterInclusive('\n');
-            if (p.len > max_password_length) return error.PasswordTooLong;
-            const p_trim = mem.trim(u8, p, "\n");
+                // password
+                try stdout.print("password: ", .{});
+                try stdout.flush();
+                const p = try reader.takeDelimiterInclusive('\n');
+                if (p.len > max_password_length) return error.PasswordTooLong;
+                const p_trim = mem.trim(u8, p, "\n");
 
-            // password retype
-            try stdout.print("retype password: ", .{});
-            try stdout.flush();
-            const pr = try reader.takeDelimiterInclusive('\n');
-            if (pr.len > max_password_length) return error.PasswordTooLong;
-            const pr_trim = mem.trim(u8, pr, "\n");
+                // password retype
+                try stdout.print("retype password: ", .{});
+                try stdout.flush();
+                const pr = try reader.takeDelimiterInclusive('\n');
+                if (pr.len > max_password_length) return error.PasswordTooLong;
+                const pr_trim = mem.trim(u8, pr, "\n");
 
-            if (!mem.eql(u8, p_trim, pr_trim)) return error.PasswordNotMatch;
-            return p_trim;
+                if (!mem.eql(u8, p_trim, pr_trim)) return error.PasswordNotMatch;
+                return p_trim;
+            }
+
+            // fallback to environment variable
+            const password = env_map.get(environ_password_key) orelse return error.PasswordNotProvided;
+            if (password.len > max_password_length) return error.PasswordTooLong;
+            const copied = buf[0..password.len];
+            @memcpy(copied, password);
+            return copied;
         }
 
-        fn run(options: *const Options, io: std.Io, allocator: std.mem.Allocator) !void {
+        fn run(
+            options: *const Options,
+            io: std.Io,
+            allocator: std.mem.Allocator,
+            env_map: *proc.Environ.Map,
+        ) !void {
             var cwd = std.Io.Dir.cwd();
 
             const ipath = options.input orelse return error.ArgumentNotEnough;
@@ -131,7 +161,7 @@ const Command = union(Tag) {
 
             var password_buf: [max_password_length * 2]u8 = undefined;
             defer crypto.secureZero(u8, &password_buf);
-            const password = try options.getPassword(io, &password_buf);
+            const password = try options.getPassword(io, env_map, &password_buf);
 
             var cipher: Cipher = try .init(io, allocator, meta, password);
             defer cipher.deinit();
@@ -156,6 +186,7 @@ const Command = union(Tag) {
         output: ?[]const u8 = null,
         password: ?[]const u8 = null,
         force: bool = false,
+        interactive: bool = false,
 
         fn parse(iter: *proc.Args.Iterator) !Options {
             var options: Options = .{};
@@ -169,6 +200,8 @@ const Command = union(Tag) {
                     options.password = try nextString(iter)
                 else if (eqlFlag(arg, "--force", "-f"))
                     options.force = true
+                else if (eqlFlag(arg, "--interactive", "-I"))
+                    options.interactive = true
                 else
                     return error.InvalidOptions;
             }
@@ -189,7 +222,12 @@ const Command = union(Tag) {
             }
         }
 
-        fn run(options: *const Options, io: std.Io, allocator: mem.Allocator) !void {
+        fn run(
+            options: *const Options,
+            io: std.Io,
+            allocator: mem.Allocator,
+            env_map: *proc.Environ.Map,
+        ) !void {
             var cwd = std.Io.Dir.cwd();
 
             const ipath = options.input orelse return error.ArgumentNotEnough;
@@ -203,34 +241,51 @@ const Command = union(Tag) {
             defer ofile.deinit(io);
 
             var password_buf: [max_password_length]u8 = undefined;
-            const password = try options.getPassword(io, &password_buf);
+            const password = try options.getPassword(io, env_map, &password_buf);
 
             try flox.decryptStream(io, allocator, &ifile, &ofile.file, password);
             try ofile.replace(io);
         }
 
-        fn getPassword(options: *const Options, io: std.Io, buf: *[max_password_length]u8) ![]const u8 {
-            if (options.password) |pwd| return pwd;
+        fn getPassword(
+            options: *const Options,
+            io: std.Io,
+            env_map: *proc.Environ.Map,
+            buf: *[max_password_length]u8,
+        ) ![]const u8 {
+            if (options.password) |pwd| {
+                if (options.interactive) return error.AmbiguousOptions;
+                return pwd;
+            }
 
-            var stdout_file = std.Io.File.stdout();
-            var stdout_writer = stdout_file.writer(io, &.{});
-            const stdout = &stdout_writer.interface;
+            if (options.interactive) {
+                var stdout_file = std.Io.File.stdout();
+                var stdout_writer = stdout_file.writer(io, &.{});
+                const stdout = &stdout_writer.interface;
 
-            var stdin = std.Io.File.stdin();
-            var stdin_reader = stdin.reader(io, buf);
-            const reader = &stdin_reader.interface;
+                var stdin = std.Io.File.stdin();
+                var stdin_reader = stdin.reader(io, buf);
+                const reader = &stdin_reader.interface;
 
-            // password
-            try stdout.print("password: ", .{});
-            try stdout.flush();
-            const p = reader.takeDelimiterInclusive('\n') catch |e| {
-                switch (e) {
-                    error.StreamTooLong => return error.PasswordTooLong,
-                    else => return e,
-                }
-            };
-            const p_trim = mem.trim(u8, p, "\n");
-            return p_trim;
+                // password
+                try stdout.print("password: ", .{});
+                try stdout.flush();
+                const p = reader.takeDelimiterInclusive('\n') catch |e| {
+                    switch (e) {
+                        error.StreamTooLong => return error.PasswordTooLong,
+                        else => return e,
+                    }
+                };
+                const p_trim = mem.trim(u8, p, "\n");
+                return p_trim;
+            }
+
+            const password = env_map.get(environ_password_key) orelse return error.PasswordNotProvided;
+            if (password.len > max_password_length) return error.PasswordTooLong;
+
+            const copied = buf[0..password.len];
+            @memcpy(copied, password);
+            return copied;
         }
     },
 
@@ -247,7 +302,12 @@ const Command = union(Tag) {
         }
     }
 
-    fn run(command: *const Command, io: std.Io, allocator: mem.Allocator) !void {
+    fn run(
+        command: *const Command,
+        io: std.Io,
+        allocator: mem.Allocator,
+        env_map: *proc.Environ.Map,
+    ) !void {
         var stdout_file = std.Io.File.stdout();
         var stdout_writer = stdout_file.writer(io, &.{});
         const stdout = &stdout_writer.interface;
@@ -255,8 +315,8 @@ const Command = union(Tag) {
         switch (command.*) {
             .help => try stdout.print("{s}\n", .{help_message}),
             .version => try stdout.print("flox {s}\n", .{flox.version_string}),
-            .encrypt => |opt| try opt.run(io, allocator),
-            .decrypt => |opt| try opt.run(io, allocator),
+            .encrypt => |opt| try opt.run(io, allocator, env_map),
+            .decrypt => |opt| try opt.run(io, allocator, env_map),
         }
     }
 
@@ -323,6 +383,7 @@ const help_message =
     \\    -i  --input        path to input file (required)
     \\    -o  --output       path to output file (required or use -f)
     \\    -P  --password     encryption password
+    \\    -I  --interactive  input password interactively
     \\    -c  --chunk-size   chunk size in MiB (default 0.5 MiB)
     \\    -m  --memory-cost  argon2 memory cost in MiB (default 64.0 MiB)
     \\    -t  --time-cost    argon2 time cost (default 1)
