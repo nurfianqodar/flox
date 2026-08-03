@@ -1,4 +1,5 @@
 const std = @import("std");
+const Header = @import("src/flox/Header.zig");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -16,6 +17,11 @@ pub fn build(b: *std.Build) void {
     const lib = b.addLibrary(.{
         .name = "flox",
         .root_module = lib_mod,
+        .version = .{
+            .major = Header.default.version[0],
+            .minor = Header.default.version[1],
+            .patch = Header.default.version[1],
+        },
     });
 
     b.installArtifact(lib);
@@ -36,6 +42,11 @@ pub fn build(b: *std.Build) void {
     const exe = b.addExecutable(.{
         .name = "flox",
         .root_module = exe_mod,
+        .version = .{
+            .major = Header.default.version[0],
+            .minor = Header.default.version[1],
+            .patch = Header.default.version[1],
+        },
     });
 
     b.installArtifact(exe);

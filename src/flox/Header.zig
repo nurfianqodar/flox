@@ -21,11 +21,11 @@ version: [version_length]u8,
 /// contains valid magic and current version
 pub const default: Header = .{
     .magic = .{ 'f', 'l', 'o', 'x' },
-    .version = .{ 0, 1, 0 },
+    .version = .{ 0, 1, 1 },
 };
 
 /// this should represent default.version
-pub const version_string = "0.1.0";
+pub const version_string = "0.1.1";
 
 /// validate header
 pub fn validate(header: *const Header) !void {
