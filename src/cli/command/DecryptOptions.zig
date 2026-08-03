@@ -2,7 +2,7 @@ const std = @import("std");
 const proc = std.process;
 const mem = std.mem;
 
-const utils = @import("../utils.zig");
+const utils = @import("utils.zig");
 const Console = @import("../Console.zig");
 const flox = @import("../../flox.zig");
 
