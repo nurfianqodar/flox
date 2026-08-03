@@ -36,9 +36,6 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/main.zig"),
     });
 
-    exe_mod.linkLibrary(lib);
-    exe_mod.addImport("flox", lib.root_module);
-
     const exe = b.addExecutable(.{
         .name = "flox",
         .root_module = exe_mod,
