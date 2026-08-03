@@ -50,7 +50,7 @@ pub const Command = union(Tag) {
         defer c.flushAll() catch {};
 
         switch (command.*) {
-            .help => try c.out().print("{s}\n", .{help_message}),
+            .help => try c.out().print("{s}", .{help_message}),
             .version => try c.out().print("flox {s}\n", .{flox.version_string}),
             .encrypt => |opt| try opt.run(io, allocator, env_map, &c),
             .decrypt => |opt| try opt.run(io, allocator, env_map, &c),
@@ -119,13 +119,13 @@ const help_message =
     \\  flox <COMMAND> [OPTIONS]
     \\
     \\COMMANDS:
-    \\  (e)ncrypt   Encrypt a file
-    \\  (d)ecrypt   Decrypt a file
-    \\  (v)ersion   Display flox version
-    \\  (h)elp      Display this message
+    \\  e  encrypt   Encrypt a file
+    \\  d  decrypt   Decrypt a file
+    \\  v  version   Display flox version
+    \\  h  help      Display this message
     \\
     \\OPTIONS:
-    \\  (e)ncrypt:
+    \\  encrypt:
     \\    -i  --input        path to input file (required)
     \\    -o  --output       path to output file (required or use -f)
     \\    -P  --password     encryption password
@@ -136,10 +136,11 @@ const help_message =
     \\    -t  --time-cost    argon2 time cost (default 1)
     \\    -p  --parallelism  argon2 parallelism (default 1)
     \\
-    \\  (d)ecrypt:
+    \\  decrypt:
     \\    -i  --input        path to input file (required)
     \\    -o  --output       path to output file (required or use -f)
     \\    -P  --password     decryption password
     \\    -I  --interactive  input password interactively
     \\    -f  --force        overwrite output if exists
+    \\
 ;
