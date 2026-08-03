@@ -1,6 +1,6 @@
 # flox: simple, secure, fast, lightweight file encryption tool
 
-![Flox Logo](assets/logo.svg)
+![Flox Logo](assets/logo-medium.svg)
 
 **The Problem:**
 
