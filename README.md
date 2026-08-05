@@ -4,15 +4,10 @@
 
 **The Problem:**
 
-- Some cloud storage providers use customer data to train
-  their AI models.
-- You want to encrypt files without installing large, feature-heavy
-  encryption tools.
-- You want to encrypt highly compressed archives, but archive
-  formats often lack built-in encryption.
-- Public key encryption requires managing keys and more complex
-  commands, while all you want is to protect a file with a memorable
-  password.
+- Some cloud storage providers use customer data to train their AI models.
+- You want to encrypt files without installing large, feature-heavy encryption tools.
+- You want to encrypt highly compressed archives, but archive formats often lack built-in encryption.
+- Public key encryption requires managing keys and more complex commands, while all you want is to protect a file with a memorable password.
 
 **The Solution:**
 
@@ -21,10 +16,7 @@
 - Choose an encryption tool that efficiently handles large files.
 - Use password-based encryption for a simple and convenient workflow.
 
-**flox** is built to solve exactly these problems. It is a lightweight,
-password-based file encryption tool designed to be simple, secure, and
-efficient. It focuses on doing one thing well: encrypting and decrypting
-files of any size with a memorable password.
+**flox** is built to solve exactly these problems. It is a lightweight, password-based file encryption tool designed to be simple, secure, and efficient. It focuses on doing one thing well: encrypting and decrypting files of any size with a memorable password.
 
 ## Features
 
@@ -46,32 +38,33 @@ files of any size with a memorable password.
 
 1. Clone the repository.
 
-```bash
-git clone https://codeberg.org/nurfianqodar/flox.git
-cd flox
-```
+   ```bash
+   git clone https://codeberg.org/nurfianqodar/flox.git
+   ```
 
 2. Build the project.
 
-```bash
-zig build
-```
+   ```bash
+   cd flox
+
+   zig build
+   ```
 
 3. Install the executable.
 
-Install to the default prefix:
+   Install to the default prefix:
 
-```bash
-zig build install -Doptimize=ReleaseSafe
-```
+   ```bash
+   zig build install -Doptimize=ReleaseSafe
+   ```
 
-Or install to a custom directory:
+   Or install to a custom directory:
 
-```bash
-zig build install \
-    -Doptimize=ReleaseSafe \
-    --prefix-exe-dir "$HOME/.local/bin"
-```
+   ```bash
+   zig build install \
+       -Doptimize=ReleaseSafe \
+       --prefix-exe-dir "$HOME/.local/bin"
+   ```
 
 ## Usage
 
@@ -218,15 +211,11 @@ flox decrypt
 
 ## Cryptography
 
-**flox** uses modern, secure cryptographic primitives to
-ensure your data remains private and tamper-proof:
+**flox** uses modern, secure cryptographic primitives to ensure your data remains private and tamper-proof:
 
-- **Key Derivation:** Argon2 (Configurable memory, time,
-  and parallelism costs to protect against brute-force attacks).
-- **Encryption:** AES-256-GCM (Authenticated Encryption with
-  Associated Data ensures both privacy and file integrity).
-- **Streaming:** Files are processed in chunks, keeping
-  memory usage low and constant even when encrypting multi-gigabyte files.
+- **Key Derivation:** Argon2 (Configurable memory, time, and parallelism costs to protect against brute-force attacks).
+- **Encryption:** AES-256-GCM (Authenticated Encryption with Associated Data ensures both privacy and file integrity).
+- **Streaming:** Files are processed in chunks, keeping memory usage low and constant even when encrypting multi-gigabyte files.
 
 ## License
 
