@@ -58,4 +58,37 @@ test "encrypt and decrypt stream" {
     defer allocator.free(dec);
 
     try t.expectEqualSlices(u8, plain, dec);
+
+    try cwd.deleteFile(io, enc_path);
+    try cwd.deleteFile(io, dec_path);
+}
+
+test "decrypt" {
+    const std = @import("std");
+    const t = std.testing;
+    const io = t.io;
+    const allocator = t.allocator;
+
+    const plain_path = "tests/test-data.svg";
+    const enc_path = "tests/test-data.enc.flox";
+    const dec_path = "tests/test-data.dec.flox";
+    const password = "secretpassword";
+
+    var cwd = std.Io.Dir.cwd();
+
+    var enc_file = try cwd.openFile(io, enc_path, .{ .mode = .read_only });
+    defer enc_file.close(io);
+
+    var dec_file = try cwd.createFile(io, dec_path, .{ .truncate = true });
+    defer dec_file.close(io);
+
+    try decryptStream(io, allocator, &enc_file, &dec_file, password);
+
+    const plain = try cwd.readFileAlloc(io, plain_path, allocator, .unlimited);
+    defer allocator.free(plain);
+
+    const dec = try cwd.readFileAlloc(io, dec_path, allocator, .unlimited);
+    defer allocator.free(dec);
+
+    try cwd.deleteFile(io, dec_path);
 }
