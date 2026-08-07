@@ -1,16 +1,25 @@
+//! Console interaction
 const std = @import("std");
 
 const Console = @This();
 
+/// stderror file
 stderr_file: std.Io.File,
+/// stderror file writer
 stderr_writer: std.Io.File.Writer,
 
+/// stdout file
 stdout_file: std.Io.File,
+/// stdout file writer
 stdout_writer: std.Io.File.Writer,
 
+/// stdin file
 stdin_file: std.Io.File,
+/// stdin file reader
 stdin_reader: std.Io.File.Reader,
 
+/// initialize new console
+/// stdin should buffered
 pub fn init(io: std.Io, stderr_buf: ?[]u8, stdout_buf: ?[]u8, stdin_buf: []u8) Console {
     var console: Console = undefined;
 
@@ -26,18 +35,22 @@ pub fn init(io: std.Io, stderr_buf: ?[]u8, stdout_buf: ?[]u8, stdin_buf: []u8) C
     return console;
 }
 
+/// get stderr writer
 pub fn err(console: *Console) *std.Io.Writer {
     return &console.stderr_writer.interface;
 }
 
+/// get stdout writer
 pub fn out(console: *Console) *std.Io.Writer {
     return &console.stdout_writer.interface;
 }
 
+/// get stdin reader
 pub fn in(console: *Console) *std.Io.Reader {
     return &console.stdin_reader.interface;
 }
 
+/// disable or enable stdin echo
 pub fn setTerminalEcho(console: *Console, enabled: bool) !void {
     const builtin = @import("builtin");
     switch (builtin.os.tag) {
@@ -47,6 +60,36 @@ pub fn setTerminalEcho(console: *Console, enabled: bool) !void {
     }
 }
 
+const windows = std.os.windows;
+extern "kernel32" fn GetConsoleMode(h: windows.HANDLE, mode: *windows.DWORD) callconv(.winapi) windows.BOOL;
+extern "kernel32" fn SetConsoleMode(h: windows.HANDLE, mode: windows.DWORD) callconv(.winapi) windows.BOOL;
+const ENABLE_ECHO_INPUT: u32 = 0x0004;
+
+/// disable or enable stdin echo windows
+fn setTerminalEchoWindows(console: *Console, enabled: bool) !void {
+    var mode: windows.DWORD = undefined;
+
+    if (!GetConsoleMode(console.stdin_file.handle, &mode).toBool())
+        return error.GetConsoleMode;
+
+    if (enabled)
+        mode |= ENABLE_ECHO_INPUT
+    else
+        mode &= ~ENABLE_ECHO_INPUT;
+
+    if (!SetConsoleMode(console.stdin_file.handle, mode).toBool())
+        return error.SetConsoleMode;
+}
+
+/// disable or enable stdin echo posix platform
+fn setTerminalEchoPosix(console: *Console, enabled: bool) !void {
+    const posix = std.posix;
+    var termios = try posix.tcgetattr(console.stdin_file.handle);
+    termios.lflag.ECHO = enabled;
+    try posix.tcsetattr(console.stdin_file.handle, .NOW, termios);
+}
+
+/// get password from stdin with hidden input
 pub fn promptPassword(console: *Console, prompt: []const u8, buf: []u8) ![]const u8 {
     try console.setTerminalEcho(false);
     defer console.setTerminalEcho(true) catch {};
@@ -63,33 +106,6 @@ pub fn promptPassword(console: *Console, prompt: []const u8, buf: []u8) ![]const
     try console.out().flush();
 
     return buf[0..len];
-}
-
-const windows = std.os.windows;
-extern "kernel32" fn GetConsoleMode(h: windows.HANDLE, mode: *windows.DWORD) callconv(.winapi) windows.BOOL;
-extern "kernel32" fn SetConsoleMode(h: windows.HANDLE, mode: windows.DWORD) callconv(.winapi) windows.BOOL;
-const ENABLE_ECHO_INPUT: u32 = 0x0004;
-
-fn setTerminalEchoWindows(console: *Console, enabled: bool) !void {
-    var mode: windows.DWORD = undefined;
-
-    if (!GetConsoleMode(console.stdin_file.handle, &mode).toBool())
-        return error.GetConsoleMode;
-
-    if (enabled)
-        mode |= ENABLE_ECHO_INPUT
-    else
-        mode &= ~ENABLE_ECHO_INPUT;
-
-    if (!SetConsoleMode(console.stdin_file.handle, mode).toBool())
-        return error.SetConsoleMode;
-}
-
-fn setTerminalEchoPosix(console: *Console, enabled: bool) !void {
-    const posix = std.posix;
-    var termios = try posix.tcgetattr(console.stdin_file.handle);
-    termios.lflag.ECHO = enabled;
-    try posix.tcsetattr(console.stdin_file.handle, .NOW, termios);
 }
 
 pub fn flushAll(console: *Console) !void {
