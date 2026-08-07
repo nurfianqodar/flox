@@ -65,10 +65,24 @@ pub fn promptPassword(console: *Console, prompt: []const u8, buf: []u8) ![]const
     return buf[0..len];
 }
 
+const windows = std.os.windows;
+extern "kernel32" fn GetConsoleMode(h: windows.HANDLE, mode: *windows.DWORD) callconv(.winapi) windows.BOOL;
+extern "kernel32" fn SetConsoleMode(h: windows.HANDLE, mode: windows.DWORD) callconv(.winapi) windows.BOOL;
+const ENABLE_ECHO_INPUT: u32 = 0x0004;
+
 fn setTerminalEchoWindows(console: *Console, enabled: bool) !void {
-    // TODO
-    _ = console;
-    _ = enabled;
+    var mode: windows.DWORD = undefined;
+
+    if (!GetConsoleMode(console.stdin_file.handle, &mode).toBool())
+        return error.GetConsoleMode;
+
+    if (enabled)
+        mode |= ENABLE_ECHO_INPUT
+    else
+        mode &= ~ENABLE_ECHO_INPUT;
+
+    if (!SetConsoleMode(console.stdin_file.handle, mode).toBool())
+        return error.SetConsoleMode;
 }
 
 fn setTerminalEchoPosix(console: *Console, enabled: bool) !void {
