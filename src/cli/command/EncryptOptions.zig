@@ -65,6 +65,7 @@ pub fn parse(iter: *proc.Args.Iterator) !EncryptOptions {
     return options;
 }
 
+/// get password
 fn getPassword(
     options: *const EncryptOptions,
     env_map: *proc.Environ.Map,
@@ -96,6 +97,38 @@ fn getPassword(
     return try utils.getEnvPassword(env_map, buf);
 }
 
+/// open input file and check is it flox file
+fn getInputFile(options: *const EncryptOptions, io: std.Io) !std.Io.File {
+    const path = options.input orelse return error.ArgumentNotEnough;
+    if (try flox.isFloxFile(io, path)) return error.AlreadyEncrypted;
+
+    var cwd = std.Io.Dir.cwd();
+    const file = try cwd.openFile(io, path, .{ .mode = .read_only });
+    return file;
+}
+
+/// create atomic file for output
+fn getOutputFile(options: *const EncryptOptions, io: std.Io) !std.Io.File.Atomic {
+    const path = if (options.output) |o| o else if (options.input) |i| i else return error.ArgumentNotEnough;
+    if (try flox.isFileExists(io, path) and !options.force) return error.PathAlreadyExists;
+
+    var cwd = std.Io.Dir.cwd();
+    const afile = try cwd.createFileAtomic(io, path, .{ .replace = true });
+    return afile;
+}
+
+/// generate Cipher.Metadata instance
+fn getCipherMetadata(options: *const EncryptOptions, io: std.Io) !flox.Cipher.Metadata {
+    return try .init(io, .{
+        // cipher meta accept in KiB but options in MiB
+        // convert before use
+        .m = @intFromFloat(options.m * 1024.0),
+        .t = options.t,
+        .p = options.p,
+    });
+}
+
+/// run encrypt file
 pub fn run(
     options: *const EncryptOptions,
     io: std.Io,
@@ -103,28 +136,17 @@ pub fn run(
     env_map: *proc.Environ.Map,
     console: *Console,
 ) !void {
-    var cwd = std.Io.Dir.cwd();
-
-    const ipath = options.input orelse return error.ArgumentNotEnough;
-    if (try flox.isFloxFile(io, ipath)) return error.AlreadyEncrypted;
-    var ifile = try cwd.openFile(io, ipath, .{ .mode = .read_only });
+    var ifile = try options.getInputFile(io);
     defer ifile.close(io);
 
-    const opath = options.output orelse ipath;
-    if (try flox.isFileExists(io, opath) and !options.force) return error.PathAlreadyExists;
-    var aofile = try cwd.createFileAtomic(io, opath, .{ .replace = true });
+    var aofile = try options.getOutputFile(io);
     defer aofile.deinit(io);
-
-    const meta: flox.Cipher.Metadata = try .init(io, .{
-        // cipher meta accept in KiB while options in MiB
-        .m = @intFromFloat(options.m * 1024.0),
-        .t = options.t,
-        .p = options.p,
-    });
 
     var password_buf: [utils.max_password_length]u8 = undefined;
     defer crypto.secureZero(u8, &password_buf);
     const password = try options.getPassword(env_map, &password_buf, console);
+
+    const meta = try options.getCipherMetadata(io);
 
     var cipher: flox.Cipher = try .init(io, allocator, meta, password);
     defer cipher.deinit();
