@@ -1,3 +1,5 @@
+//! Decrypt file cli options
+
 const std = @import("std");
 const proc = std.process;
 const mem = std.mem;
@@ -8,12 +10,23 @@ const flox = @import("../../flox.zig");
 
 const DecryptOptions = @This();
 
+/// input file path (required)
 input: ?[]const u8 = null,
+
+/// output file path (default similar as input file (use force to overwrite))
 output: ?[]const u8 = null,
+
+/// encryption password
 password: ?[]const u8 = null,
+
+/// ask password interactively
 interactive: bool = false,
+
+/// overwrite output file if exists
 force: bool = false,
 
+/// parse from arguments
+/// iterator should generate new
 pub fn parse(iter: *proc.Args.Iterator) !DecryptOptions {
     var options: DecryptOptions = .{};
 
@@ -34,46 +47,30 @@ pub fn parse(iter: *proc.Args.Iterator) !DecryptOptions {
     return options;
 }
 
-fn getInputPath(options: *const DecryptOptions) ![]const u8 {
-    return options.input orelse return error.ArgumentNotEnough;
-}
-
-fn getOutputPath(options: *const DecryptOptions) ![]const u8 {
-    if (options.output) |o|
-        return o
-    else {
-        if (options.force)
-            return options.input orelse return error.ArgumentNotEnough;
-        return error.ArgumentNotEnough;
-    }
-}
-
-pub fn run(
-    options: *const DecryptOptions,
-    io: std.Io,
-    allocator: mem.Allocator,
-    env_map: *proc.Environ.Map,
-    console: *Console,
-) !void {
+fn getInputFile(options: *const DecryptOptions, io: std.Io) !std.Io.File {
+    const path = options.input orelse return error.ArgumentNotEnough;
+    if (!try flox.isFloxFile(io, path)) return error.NotEncrypted;
     var cwd = std.Io.Dir.cwd();
-
-    const ipath = options.input orelse return error.ArgumentNotEnough;
-    if (!try flox.isFloxFile(io, ipath)) return error.NotEncrypted;
-    var ifile = try cwd.openFile(io, ipath, .{ .mode = .read_only });
-    defer ifile.close(io);
-
-    const opath = options.output orelse ipath;
-    if (try flox.isFileExists(io, opath) and !options.force) return error.PathAlreadyExists;
-    var ofile = try cwd.createFileAtomic(io, opath, .{ .replace = true });
-    defer ofile.deinit(io);
-
-    var password_buf: [utils.max_password_length]u8 = undefined;
-    const password = try options.getPassword(env_map, &password_buf, console);
-
-    try flox.decryptStream(io, allocator, &ifile, &ofile.file, password);
-    try ofile.replace(io);
+    const file = cwd.openFile(io, path, .{ .mode = .read_only });
+    return file;
 }
 
+fn getOutputFile(options: *const DecryptOptions, io: std.Io) !std.Io.File.Atomic {
+    const path = if (options.output) |o| o
+        // set input path as output
+        else if (options.input) |i| i
+        // error
+        else return error.ArgumentNotEnough;
+
+    if (try flox.isFileExists(io, path) and !options.force)
+        return error.PathAlreadyExists;
+
+    var cwd = std.Io.Dir.cwd();
+    const file = try cwd.createFileAtomic(io, path, .{ .replace = true });
+    return file;
+}
+
+/// get password from stdin
 fn getPassword(
     options: *const DecryptOptions,
     env_map: *proc.Environ.Map,
@@ -92,4 +89,25 @@ fn getPassword(
         return try console.promptPassword("password: ", buf);
 
     return try utils.getEnvPassword(env_map, buf);
+}
+
+/// run decrypt file
+pub fn run(
+    options: *const DecryptOptions,
+    io: std.Io,
+    allocator: mem.Allocator,
+    env_map: *proc.Environ.Map,
+    console: *Console,
+) !void {
+    var ifile = try options.getInputFile(io);
+    defer ifile.close(io);
+
+    var ofile = try options.getOutputFile(io);
+    defer ofile.deinit(io);
+
+    var password_buf: [utils.max_password_length]u8 = undefined;
+    const password = try options.getPassword(env_map, &password_buf, console);
+
+    try flox.decryptStream(io, allocator, &ifile, &ofile.file, password);
+    try ofile.replace(io);
 }
