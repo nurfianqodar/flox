@@ -30,6 +30,8 @@ pub const Command = union(Tag) {
     /// parse cli arguments
     pub fn parse(allocator: mem.Allocator, args: proc.Args) !Command {
         var iter = try args.iterateAllocator(allocator);
+        defer iter.deinit();
+
         _ = iter.skip();
 
         const tag: Tag = try .parse(iter.next() orelse return .help);
