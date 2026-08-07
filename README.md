@@ -191,8 +191,6 @@ flox decrypt
   flox d -i archive.tar.flox -o archive.tar
   ```
 
-### Note
-
 > [!NOTE]
 > Password precedence:
 >
@@ -201,8 +199,6 @@ flox decrypt
 > 3. If `-P` is provided, `flox` uses the password supplied on the command line.
 > 4. If neither `-I` nor `-P` is provided, `flox` reads the password from the `FLOX_PASSWORD` environment variable.
 > 5. If no password is available from any of the above sources, `flox` returns `PasswordNotProvided`.
-
-### Security Note
 
 > [!WARNING]
 > Avoid passing passwords via `--password` (`-P`).

@@ -21,18 +21,20 @@ pub const Metadata = struct {
     /// argon2 memory cost in KiB
     m: u32,
 
-    /// argin2 time cost
+    /// argon2 time cost
     t: u32,
 
-    /// argin2 parallelism
+    /// argon2 parallelism
     p: u24,
 
     /// options for generate metadata
     pub const MetadataOptions = struct {
         // argon2 memory cost in KiB
         m: u32 = 1024 * 64,
+
         /// argon2 iteration cost
         t: u32 = 1,
+
         /// argon2 parallelism
         p: u24 = 1,
     };
