@@ -6,8 +6,8 @@ const proc = std.process;
 const mem = std.mem;
 
 const utils = @import("utils.zig");
-const Console = @import("../Console.zig");
-const flox = @import("../../flox.zig");
+const flox = @import("../flox.zig");
+const Console = @import("Console.zig");
 
 const DecryptOptions = @This();
 

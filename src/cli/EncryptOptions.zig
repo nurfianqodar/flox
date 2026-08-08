@@ -3,10 +3,10 @@ const std = @import("std");
 const proc = std.process;
 const crypto = std.crypto;
 const mem = std.mem;
-const utils = @import("utils.zig");
-const flox = @import("../../flox.zig");
 
-const Console = @import("../Console.zig");
+const utils = @import("utils.zig");
+const flox = @import("../flox.zig");
+const Console = @import("Console.zig");
 
 const EncryptOptions = @This();
 

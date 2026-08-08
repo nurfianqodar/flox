@@ -8,8 +8,8 @@ const fmt = std.fmt;
 const flox = @import("../flox.zig");
 const Cipher = flox.Cipher;
 const Console = @import("Console.zig");
-const EncryptOptions = @import("command/EncryptOptions.zig");
-const DecryptOptions = @import("command/DecryptOptions.zig");
+const EncryptOptions = @import("EncryptOptions.zig");
+const DecryptOptions = @import("DecryptOptions.zig");
 
 const max_password_length: comptime_int = 1024;
 const environ_password_key: []const u8 = "FLOX_PASSWORD";
