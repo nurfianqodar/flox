@@ -28,18 +28,15 @@ pub const Command = union(Tag) {
     decrypt: DecryptOptions,
 
     /// parse cli arguments
-    pub fn parse(allocator: mem.Allocator, args: proc.Args) !Command {
-        var iter = try args.iterateAllocator(allocator);
-        defer iter.deinit();
-
-        _ = iter.skip();
-
-        const tag: Tag = try .parse(iter.next() orelse return .help);
+    ///
+    /// skip first args (exe name) before calling this method
+    pub fn parse(args_iter: *proc.Args.Iterator) !Command {
+        const tag: Tag = try .parse(args_iter.next() orelse return .help);
         switch (tag) {
             .help => return .help,
             .version => return .version,
-            .encrypt => return .{ .encrypt = try .parse(&iter) },
-            .decrypt => return .{ .decrypt = try .parse(&iter) },
+            .encrypt => return .{ .encrypt = try .parse(args_iter) },
+            .decrypt => return .{ .decrypt = try .parse(args_iter) },
         }
     }
 

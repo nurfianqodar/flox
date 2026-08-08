@@ -7,6 +7,11 @@ pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
     const args = init.minimal.args;
 
-    const command: Command = try .parse(allocator, args);
+    var args_iter = try args.iterateAllocator(allocator);
+    defer args_iter.deinit();
+
+    _ = args_iter.skip();
+
+    const command: Command = try .parse(&args_iter);
     try command.run(io, allocator, init.environ_map);
 }
