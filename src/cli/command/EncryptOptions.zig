@@ -1,3 +1,4 @@
+const builtin = @import("builtin");
 const std = @import("std");
 const proc = std.process;
 const crypto = std.crypto;
@@ -136,6 +137,9 @@ pub fn run(
     env_map: *proc.Environ.Map,
     console: *Console,
 ) !void {
+    if (builtin.mode == .Debug)
+        options.debug();
+
     var ifile = try options.getInputFile(io);
     defer ifile.close(io);
 
@@ -161,4 +165,30 @@ pub fn run(
         @intFromFloat(options.chunk_size * 1024.0 * 1024.0),
     );
     try aofile.replace(io);
+}
+
+/// debug
+fn debug(options: *const EncryptOptions) void {
+    std.debug.print(
+        \\Input = {s}
+        \\Output = {s}
+        \\Password = {s}
+        \\Interactive = {any}
+        \\Force = {any}
+        \\Memory cost = {d}
+        \\Time cost = {d}
+        \\Parallelism = {d}
+        \\Chunk size = {d}
+        \\
+    , .{
+        options.input orelse "<empty>",
+        options.output orelse "<empty>",
+        options.password orelse "<empty>",
+        options.interactive,
+        options.force,
+        options.m,
+        options.t,
+        options.p,
+        options.chunk_size,
+    });
 }

@@ -100,6 +100,9 @@ pub fn run(
     env_map: *proc.Environ.Map,
     console: *Console,
 ) !void {
+    if (builtin.mode == .Debug)
+        options.debug();
+
     var ifile = try options.getInputFile(io);
     defer ifile.close(io);
 
@@ -111,4 +114,22 @@ pub fn run(
 
     try flox.decryptStream(io, allocator, &ifile, &ofile.file, password);
     try ofile.replace(io);
+}
+
+/// debug
+fn debug(options: *const DecryptOptions) void {
+    std.debug.print(
+        \\Input = {s}
+        \\Output = {s}
+        \\Password = {s}
+        \\Interactive = {any}
+        \\Force = {any}
+        \\
+    , .{
+        options.input orelse "<empty>",
+        options.output orelse "<empty>",
+        options.password orelse "<empty>",
+        options.interactive,
+        options.force,
+    });
 }
