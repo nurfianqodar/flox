@@ -5,7 +5,6 @@ const Blake3 = crypto.hash.Blake3;
 
 const Header = @import("Header.zig");
 const Cipher = @import("Cipher.zig");
-const ChunkLayout = @import("ChunkLayout.zig");
 const utils = @import("utils.zig");
 
 /// streamming encrypt data from input to output
@@ -29,8 +28,8 @@ pub fn stream(
     var cipher_meta_encoded: [Cipher.Metadata.encoded_length]u8 = undefined;
     cipher.metadata.encode(&cipher_meta_encoded);
 
-    const chunk_layout: ChunkLayout = try .compute(chunk_size, input_stat.size);
-    var chunk_layout_encoded: [ChunkLayout.encoded_length]u8 = undefined;
+    const chunk_layout: Header.ChunkLayout = try .compute(chunk_size, input_stat.size);
+    var chunk_layout_encoded: [Header.ChunkLayout.encoded_length]u8 = undefined;
     chunk_layout.encode(&chunk_layout_encoded);
 
     // encoded as magic||version||metadata||chunk_layout

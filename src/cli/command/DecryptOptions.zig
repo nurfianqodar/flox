@@ -1,5 +1,6 @@
 //! Decrypt file cli options
 
+const builtin = @import("builtin");
 const std = @import("std");
 const proc = std.process;
 const mem = std.mem;

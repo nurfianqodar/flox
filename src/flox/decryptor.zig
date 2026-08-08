@@ -4,7 +4,6 @@ const crypto = std.crypto;
 
 const Header = @import("Header.zig");
 const Cipher = @import("Cipher.zig");
-const ChunkLayout = @import("ChunkLayout.zig");
 const Blake3 = std.crypto.hash.Blake3;
 
 /// streamming decrypt data from input file to output file
@@ -20,7 +19,7 @@ pub fn stream(
 
     var header: Header = undefined;
     var cipher_meta_encoded: [Cipher.Metadata.encoded_length]u8 = undefined;
-    var chunk_layout_encoded: [ChunkLayout.encoded_length]u8 = undefined;
+    var chunk_layout_encoded: [Header.ChunkLayout.encoded_length]u8 = undefined;
 
     // encoded as magic||version||metadata||chunk_layout
     // DON'T CHANGE THE ORDER WITHOUT CHECKING `encryptor.stream`
@@ -35,7 +34,7 @@ pub fn stream(
     try header.validate();
 
     const cipher_meta: Cipher.Metadata = try .decode(&cipher_meta_encoded);
-    const chunk_layout: ChunkLayout = try .decode(&chunk_layout_encoded);
+    const chunk_layout: Header.ChunkLayout = try .decode(&chunk_layout_encoded);
 
     const chunk = try allocator.alloc(u8, chunk_layout.size);
     defer {
